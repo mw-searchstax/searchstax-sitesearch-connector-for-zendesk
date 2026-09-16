@@ -1,0 +1,70 @@
+services:
+  mysql:
+    image: mysql:8.4@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
+    environment:
+      MYSQL_DATABASE: connector
+      MYSQL_USER: connector
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+    secrets:
+      - mysql_password
+      - mysql_root_password
+    volumes:
+      - mysql-data:/var/lib/mysql
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  app:
+    image: ${APP_IMAGE:?APP_IMAGE is required}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_TLS: disabled
+      CONFIG_ENCRYPTION_KEY_FILE: /run/secrets/config_encryption_key
+      CONNECTOR_ID: ${CONNECTOR_ID:-}
+      ZENDESK_OAUTH_CLIENT_ID: ${ZENDESK_OAUTH_CLIENT_ID:-}
+      LISTEN_ADDRESS: 0.0.0.0
+      PORT: "${RUNTIME_PROOF_PORT:-4173}"
+      OPERATOR_ORIGIN: http://127.0.0.1:${RUNTIME_PROOF_PORT:-4173}
+    secrets:
+      - database_url
+      - config_encryption_key
+    ports:
+      - "127.0.0.1:${RUNTIME_PROOF_PORT:-4173}:${RUNTIME_PROOF_PORT:-4173}"
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  mysql-data:
+
+secrets:
+  mysql_password:
+    file: ${STATE_DIR}/mysql-password
+  mysql_root_password:
+    file: ${STATE_DIR}/mysql-root-password
+  database_url:
+    file: ${STATE_DIR}/database-url
+  config_encryption_key:
+    file: ${STATE_DIR}/config-encryption-key

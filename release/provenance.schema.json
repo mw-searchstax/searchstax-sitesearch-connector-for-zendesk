@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "exportManifestVersion",
+    "repository",
+    "commit",
+    "tag",
+    "version",
+    "platform",
+    "imageDigest",
+    "checksums"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "exportManifestVersion": { "type": "integer", "minimum": 1 },
+    "repository": { "type": "string", "format": "uri" },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "tag": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "platform": { "const": "linux/arm64" },
+    "schema": { "type": "integer", "minimum": 1 },
+    "imageDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "checksums": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[0-9a-f]{64}  .+$" }
+    },
+    "buildInputs": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

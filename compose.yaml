@@ -1,0 +1,46 @@
+services:
+  mysql:
+    image: mysql:8.4@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
+    environment:
+      MYSQL_DATABASE: connector
+      MYSQL_USER: connector
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  app:
+    image: searchstax-zendesk-connector:${APP_VERSION:-0.0.0-r08}
+    build:
+      context: .
+      args:
+        APP_VERSION: ${APP_VERSION:-0.0.0-r08}
+        VCS_REF: ${VCS_REF:-uncommitted}
+        OCI_SOURCE: ${OCI_SOURCE:-unset}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://connector:${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}@mysql:3306/connector
+      DATABASE_TLS: disabled
+      CONFIG_ENCRYPTION_KEY: ${CONFIG_ENCRYPTION_KEY:?Set CONFIG_ENCRYPTION_KEY}
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+      CONNECTOR_ID: ${CONNECTOR_ID:-}
+      LISTEN_ADDRESS: 0.0.0.0
+      PORT: "${RUNTIME_PROOF_PORT:-4173}"
+      OPERATOR_ORIGIN: http://127.0.0.1:${RUNTIME_PROOF_PORT:-4173}
+    ports:
+      - "127.0.0.1:${RUNTIME_PROOF_PORT:-4173}:${RUNTIME_PROOF_PORT:-4173}"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+volumes:
+  mysql-data:

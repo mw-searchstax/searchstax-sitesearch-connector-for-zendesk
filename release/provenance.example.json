@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "exportManifestVersion": 1,
+  "repository": "https://github.com/searchstax/searchstax-sitesearch-connector-for-zendesk",
+  "commit": "REPLACE_WITH_PUBLIC_COMMIT_SHA",
+  "tag": "v0.1.0-rc.5",
+  "version": "0.1.0-rc.5",
+  "platform": "linux/arm64",
+  "schema": 3,
+  "imageDigest": "sha256:REPLACE_WITH_IMAGE_DIGEST",
+  "checksums": ["REPLACE_WITH_SHA256SUMS_ENTRY"],
+  "buildInputs": ["Node 24.18.0", "npm 11.16.0"]
+}

@@ -1,0 +1,5 @@
+CREATE TABLE schema_migrations (
+  version INT UNSIGNED NOT NULL PRIMARY KEY,
+  name VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL UNIQUE,
+  applied_at DATETIME(6) NOT NULL
+) ENGINE=InnoDB;
