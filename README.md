@@ -21,6 +21,25 @@ Apple Silicon Docker Desktop is supported for this path. Linux/amd64, Windows,
 and other deployment platforms are not yet verified. Host Node.js, npm, and a
 host MySQL installation are not required.
 
+## What You Need Before Setup
+
+Have the following information ready before you open the setup UI:
+
+- Your Zendesk account subdomain and the authorization method you will use.
+- If you use OAuth, a customer-owned Zendesk public client ID. Register the
+  fixed callback `http://127.0.0.1:4173/api/oauth/zendesk/callback` and request
+  the `brands:read hc:read` scopes. No client secret is required or accepted.
+- Your intended Zendesk Guide brand and the locales you want to index.
+- Your SearchStax Site Search app, destination name, connector key, update
+  endpoint, search endpoint, and Read & Write token.
+- An optional SearchStax Preview URL if you want it shown in the dashboard.
+
+The OAuth client ID must be supplied on the first launcher run because the
+launcher persists it for later reruns. Choose the authentication path before
+you start the connector; the temporary legacy/manual path is a secondary
+compatibility option for cases where OAuth is not configured. Normal reruns do
+not require re-exporting the OAuth client ID after it has been persisted.
+
 ## Quick Start
 
 1. Clone the repository URL supplied with your reviewed SearchStax release and
@@ -42,11 +61,18 @@ host MySQL installation are not required.
    docker info --format '{{.OSType}}/{{.Architecture}}'
    ```
 
-3. Start the connector:
+3. Start the connector using the authentication path you chose before setup:
+   - For OAuth:
 
-   ```sh
-   ./deploy/local/launch.sh
-   ```
+     ```sh
+     ZENDESK_OAUTH_CLIENT_ID=YOUR_CLIENT_ID ./deploy/local/launch.sh
+     ```
+
+   - For temporary legacy/manual authentication:
+
+     ```sh
+     ./deploy/local/launch.sh
+     ```
 
 4. Wait for the launcher to print:
 
@@ -59,7 +85,8 @@ host MySQL installation are not required.
 The launcher builds the application image, creates private local state, starts
 MySQL 8.4, applies the initial schema migrations, and starts the setup UI. It
 binds the operator port to loopback. Keep `.connector-local/` private and
-recoverable. Rerun the same command after a restart or source update.
+recoverable. Rerun the same command after a restart or source update. After an
+OAuth client ID is persisted, normal reruns do not require re-exporting it.
 
 For a private remote host, use an operator-controlled SSH tunnel instead of
 exposing the operator port:
@@ -70,32 +97,6 @@ ssh -N -L 4173:127.0.0.1:4173 operator@private-host
 
 Then open [http://127.0.0.1:4173](http://127.0.0.1:4173) on the operator
 workstation.
-
-## What You Need Before Setup
-
-Have the following information ready before you open the setup UI:
-
-- Your Zendesk account subdomain and the authorization method you will use.
-- If you use OAuth, a customer-owned Zendesk public client ID. Register the
-  fixed callback `http://127.0.0.1:4173/api/oauth/zendesk/callback` and request
-  the `brands:read hc:read` scopes. The connector does not require or accept a
-  client secret.
-- Your intended Zendesk Guide brand and the locales you want to index.
-- Your SearchStax Site Search app, destination name, connector key, update
-  endpoint, search endpoint, and Read & Write token.
-- An optional SearchStax Preview URL if you want it shown in the dashboard.
-
-For OAuth, provide the client ID to the launcher before its first run. For
-example:
-
-```sh
-ZENDESK_OAUTH_CLIENT_ID=YOUR_CLIENT_ID ./deploy/local/launch.sh
-```
-
-The launcher stores this setting in the private state directory so normal
-reruns do not require you to export it again. See
-[Configure Optional Settings](docs/INSTALL.md#configure-optional-settings) for
-webhook setup.
 
 ## Setup and First Sync
 
