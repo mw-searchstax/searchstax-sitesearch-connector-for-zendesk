@@ -26,18 +26,21 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    env_file:
+      - ${RUNTIME_ENV_FILE:?RUNTIME_ENV_FILE is required}
     environment:
       DATABASE_URL_FILE: /run/secrets/database_url
       DATABASE_TLS: disabled
       CONFIG_ENCRYPTION_KEY_FILE: /run/secrets/config_encryption_key
       CONNECTOR_ID: ${CONNECTOR_ID:-}
-      ZENDESK_OAUTH_CLIENT_ID: ${ZENDESK_OAUTH_CLIENT_ID:-}
+      WEBHOOK_SIGNING_SECRET_FILE: /run/secrets/webhook_signing_secret
       LISTEN_ADDRESS: 0.0.0.0
       PORT: "${RUNTIME_PROOF_PORT:-4173}"
-      OPERATOR_ORIGIN: http://127.0.0.1:${RUNTIME_PROOF_PORT:-4173}
+      OPERATOR_ORIGIN: "http://127.0.0.1:${RUNTIME_PROOF_PORT:-4173}"
     secrets:
       - database_url
       - config_encryption_key
+      - webhook_signing_secret
     ports:
       - "127.0.0.1:${RUNTIME_PROOF_PORT:-4173}:${RUNTIME_PROOF_PORT:-4173}"
     user: "1000:1000"
@@ -68,3 +71,5 @@ secrets:
     file: ${STATE_DIR}/database-url
   config_encryption_key:
     file: ${STATE_DIR}/config-encryption-key
+  webhook_signing_secret:
+    file: ${WEBHOOK_SECRET_FILE:?WEBHOOK_SECRET_FILE is required}

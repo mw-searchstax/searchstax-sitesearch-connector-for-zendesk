@@ -43,7 +43,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "8b0c5b70f891d59870aa35ff3785604dc3c64d6130f93f1b93a5bb0cbc17c4ef"
+      "sha256": "de18f462931646bb25d131b1b1cc8d21162a0765739c40e31cf6be412a62655f"
     },
     {
       "path": "SECURITY.md",
@@ -59,7 +59,7 @@
     },
     {
       "path": "deploy/local/compose.yaml",
-      "sha256": "187717a5ec2df13fb45fc0a625a11ccc290fcfcb437b4e274360e271b48ddc79"
+      "sha256": "a98ffb157d735941b793e346d43cb8158ac2676691a4b9863c96cfb1b48eaddf"
     },
     {
       "path": "deploy/local/install-tests.mjs",
@@ -70,8 +70,12 @@
       "sha256": "01eb463e484a1bda046430ac1e4495aac6d822437dfd51e0beb1900fcc6c63ee"
     },
     {
+      "path": "deploy/local/launch-tests.mjs",
+      "sha256": "ef694e60e535afd5a93fae3438c5ad0788c5811f3b0a62ad1b373f5c6e863880"
+    },
+    {
       "path": "deploy/local/launch.sh",
-      "sha256": "b6930fa5fdad8c703e4aa718f5abddcd6ee003961dbce44b5e69c0fad3a88d26"
+      "sha256": "6c93232212e6279cede8572c4f0a713e1fba2b86a04c27877b98b1d5367cfa2e"
     },
     {
       "path": "docs/DEVELOPMENT.md",
@@ -79,11 +83,11 @@
     },
     {
       "path": "docs/INSTALL.md",
-      "sha256": "b0d8bf95b1f16b11ce53657281316419ac4c7361ab98e83dfc7ac9d4a58959d6"
+      "sha256": "a0d1c015cfd05c830eec7b3a18ad6b2c8556eb5be7c4a817f98aa29f666afe60"
     },
     {
       "path": "docs/OPERATIONS.md",
-      "sha256": "03689d93757e0adfa6ea5f7117d4687545d7da4516bfd39c1bddd6ac268eb757"
+      "sha256": "80190926714fbf9e6a201dba309f9585c79054268fb925ba9e51cf1aa3a0182f"
     },
     {
       "path": "docs/RELEASES.md",
@@ -143,7 +147,7 @@
     },
     {
       "path": "node/portable-runtime.ts",
-      "sha256": "94f47fcc68a7524545a8a163e23fa6e665e9fc35906993c3d4e17625ea8b9ac4"
+      "sha256": "07cee9d181aeb372eadaf93f7d13361e7bbff7140eaf0dfcb2d743b09760f3b1"
     },
     {
       "path": "node/zendesk-auth-state.test.ts",
@@ -175,7 +179,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "5ddb0dc32e9a8f710de6fceee870d22bb913529921a29bf031d2a65c7bf77f60"
+      "sha256": "ac14f1e7c14eba001f4f6a2cccebc59d6d796d3ee594b89eac0c215bfabec091"
     },
     {
       "path": "playwright.config.ts",

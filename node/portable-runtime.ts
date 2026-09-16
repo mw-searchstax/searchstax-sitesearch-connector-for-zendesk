@@ -27,6 +27,23 @@ async function secret(env: Environment, name: string) {
   return value.trim();
 }
 
+async function optionalSecret(env: Environment, name: string) {
+  const value = env[name];
+  const file = env[`${name}_FILE`];
+  if (value !== undefined && file !== undefined)
+    throw new Error(`${name}: choose value or file.`);
+  if (file !== undefined) {
+    let contents: string;
+    try {
+      contents = await readFile(file, "utf8");
+    } catch {
+      throw new Error(`${name}_FILE could not be read.`);
+    }
+    return contents.trim() || undefined;
+  }
+  return value?.trim() || undefined;
+}
+
 export async function runtimeSettings(env: Environment) {
   const databaseUrl = await secret(env, "DATABASE_URL");
   let url: URL;
@@ -73,6 +90,10 @@ export async function runtimeSettings(env: Environment) {
 export async function portableSettings(env: Environment) {
   const database = await runtimeSettings(env);
   const encryptionKey = await secret(env, "CONFIG_ENCRYPTION_KEY");
+  const webhookSigningSecret = await optionalSecret(
+    env,
+    "WEBHOOK_SIGNING_SECRET",
+  );
   if (
     !/^[A-Za-z0-9+/]{43}=$/.test(encryptionKey) ||
     Buffer.from(encryptionKey, "base64").length !== 32
@@ -116,9 +137,7 @@ export async function portableSettings(env: Environment) {
     port,
     operatorOrigin: origin.origin,
     shutdownMs,
-    ...(env.WEBHOOK_SIGNING_SECRET?.trim()
-      ? { webhookSigningSecret: env.WEBHOOK_SIGNING_SECRET.trim() }
-      : {}),
+    ...(webhookSigningSecret ? { webhookSigningSecret } : {}),
   };
 }
 

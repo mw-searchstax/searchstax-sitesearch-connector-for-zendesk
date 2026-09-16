@@ -1,118 +1,193 @@
 # SearchStax Zendesk Connector
 
-The SearchStax Zendesk Connector reads published public article translations
-from one Zendesk Guide brand and keeps the connector-owned records in one
+The SearchStax Zendesk Connector reads eligible published public translations
+from one Zendesk Guide brand and keeps connector-owned records in one
 SearchStax Site Search app synchronized.
 
-The connector is designed for one installation, one brand, and one destination
-app. It indexes only eligible published public translations in supported
-locales. The supported container path is limited to 500 eligible translations
-across the selected locales and runs on a Linux/arm64 Docker engine.
+Each installation connects one Zendesk brand to one SearchStax app. The
+connector indexes only eligible published public translations in the locales
+you select. The supported installation handles up to 500 eligible translations
+across those locales and runs on a Linux/arm64 Docker engine.
 
 ## Prerequisites
 
+Before you begin, install or confirm:
+
 - Git
 - Docker with Compose support
-- A Linux/arm64 Docker engine (Apple Silicon Docker Desktop is supported for
-  this boundary; Linux/amd64 and other deployment platforms are not yet
-  verified)
+- A Linux/arm64 Docker engine
 
-Host Node.js, npm, and a host MySQL installation are not required for the
-supported source launch.
+Apple Silicon Docker Desktop is supported for this path. Linux/amd64, Windows,
+and other deployment platforms are not yet verified. Host Node.js, npm, and a
+host MySQL installation are not required.
 
-## Quick start
+## Quick Start
 
-From a clean checkout:
+1. Clone the repository URL supplied with your reviewed SearchStax release and
+   change to the repository root:
 
-```sh
-./deploy/local/launch.sh
-```
+   ```sh
+   git clone REPOSITORY_URL connector
+   cd connector
+   ```
 
-Open `http://127.0.0.1:4173` on the Docker host. The launcher builds the image,
-creates the local MySQL state and encryption key once, applies explicit schema
-migrations, and starts the setup UI. It binds the operator port to loopback.
-Keep `.connector-local/` private and recoverable. Rerunning the command is
-safe; it preserves the connector identity, key, and database volume.
+   Replace `REPOSITORY_URL` with the URL supplied with your release. If you
+   choose a different directory name, use it in the `cd` command.
 
-For a private host, use an operator-controlled SSH tunnel rather than exposing
-the port publicly:
+2. Confirm that Docker is running and that the engine reports `linux/arm64`:
+
+   ```sh
+   docker version
+   docker compose version
+   docker info --format '{{.OSType}}/{{.Architecture}}'
+   ```
+
+3. Start the connector:
+
+   ```sh
+   ./deploy/local/launch.sh
+   ```
+
+4. Wait for the launcher to print:
+
+   ```text
+   Setup is ready at http://127.0.0.1:4173
+   ```
+
+5. Open [http://127.0.0.1:4173](http://127.0.0.1:4173) on the Docker host.
+
+The launcher builds the application image, creates private local state, starts
+MySQL 8.4, applies the initial schema migrations, and starts the setup UI. It
+binds the operator port to loopback. Keep `.connector-local/` private and
+recoverable. Rerun the same command after a restart or source update.
+
+For a private remote host, use an operator-controlled SSH tunnel instead of
+exposing the operator port:
 
 ```sh
 ssh -N -L 4173:127.0.0.1:4173 operator@private-host
 ```
 
-Then open `http://127.0.0.1:4173` on the operator workstation.
+Then open [http://127.0.0.1:4173](http://127.0.0.1:4173) on the operator
+workstation.
 
-## Setup and sync safety
+## What You Need Before Setup
 
-The browser setup collects Zendesk and SearchStax settings. OAuth is available
-when the deployment supplies the customer's public Zendesk client identifier;
-no client secret is accepted by the connector. Setup and readiness checks make
-vendor calls only after the operator submits the relevant settings.
+Have the following information ready before you open the setup UI:
 
-Saving SearchStax setup performs a write/read/delete compatibility check.
-Selecting **Sync now** reads Zendesk and may create, update, or delete only
-records that the connector can prove it owns. It fails closed when the complete
-source inventory or destination ownership cannot be verified. Scheduling is
-disabled by default.
+- Your Zendesk account subdomain and the authorization method you will use.
+- If you use OAuth, a customer-owned Zendesk public client ID. Register the
+  fixed callback `http://127.0.0.1:4173/api/oauth/zendesk/callback` and request
+  the `brands:read hc:read` scopes. The connector does not require or accept a
+  client secret.
+- Your intended Zendesk Guide brand and the locales you want to index.
+- Your SearchStax Site Search app, destination name, connector key, update
+  endpoint, search endpoint, and Read & Write token.
+- An optional SearchStax Preview URL if you want it shown in the dashboard.
 
-See [installation](docs/INSTALL.md), [operations](docs/OPERATIONS.md), and the
-[SearchStax contract](docs/SEARCHSTAX.md) before enabling a real sync.
+For OAuth, provide the client ID to the launcher before its first run. For
+example:
 
-## Realtime article synchronization
+```sh
+ZENDESK_OAUTH_CLIENT_ID=YOUR_CLIENT_ID ./deploy/local/launch.sh
+```
 
-The connector can update SearchStax after a Zendesk Guide article is published
-or unpublished. Set `WEBHOOK_SIGNING_SECRET` to enable the inbound endpoint:
-`POST /api/webhooks/zendesk`. The connector verifies the signed raw request
-body and requires a parseable timestamp within five minutes of receipt, then
-treats the event as a trigger rather than as source content: it performs a
-fresh authenticated Zendesk article read before indexing or removing the
-connector-owned SearchStax record.
+The launcher stores this setting in the private state directory so normal
+reruns do not require you to export it again. See
+[Configure Optional Settings](docs/INSTALL.md#configure-optional-settings) for
+webhook setup.
 
-Webhook delivery requires a deployed HTTPS-reachable endpoint. Use a trusted
-ingress or reverse proxy that exposes only this webhook path for public inbound
-traffic. Keep the operator UI and every other API route behind the existing
-private access boundary, and do not publish raw port 4173. Configure the
-connector's `OPERATOR_ORIGIN` as the exact HTTP(S) origin used by the trusted
-proxy and preserve that Host value; TLS may terminate at the proxy.
+## Setup and First Sync
 
-Scheduled full reconciliation remains the repair path for missed or failed
-events. Leave `WEBHOOK_SIGNING_SECRET` unset for a local/manual-only
-installation; manual sync and scheduled reconciliation remain available.
-Realtime delivery has been qualified against a live Zendesk account for
-published, edited, unpublished, duplicate, invalid-signature, and missed-event
-repair scenarios. Controlled transient-failure injection and transport
-reordering remain covered by local synthetic tests; no broader realtime
-guarantee is made.
+The setup UI guides you through four steps:
 
-## Persistence, restart, and recovery
+1. Select **Connect to Zendesk** for OAuth, or select the temporary legacy API
+   token option when OAuth is not configured. Select **Validate Zendesk**.
+2. Choose one accessible brand and select **Discover locales**.
+3. Select the locales, enter the SearchStax destination details, and select
+   **Check connection**. The check validates endpoint and access requirements.
+4. Review the brand, locales, destination, and credential status. Select
+   **Complete setup** only when they are correct.
 
-MySQL 8.4 is the supported persistence path. Normal startup refuses pending or
-future schema versions; migration is explicit and requires the runtime to be
-stopped. Back up MySQL and the configuration encryption key separately, keep
-the key with the matching backup generation, and restore into a fresh isolated
-database before validation. There is no production RTO/RPO guarantee.
+Completing setup stores encrypted credentials and starts a background
+SearchStax write, read, and cleanup check. The UI shows **Your connection is
+saved** while it waits. Keep the connector running. **Sync now** becomes
+available after the checks finish. If a check fails, use **Retry index check**
+or **Edit SearchStax connection**.
 
-Read [operations](docs/OPERATIONS.md) for health checks, backup, recovery,
-upgrade, rollback, and support boundaries.
+The first **Sync now** performs real Zendesk reads and can create, update, or
+delete only SearchStax records whose connector ownership is proven. The
+connector stops or fails closed when the complete source inventory, destination
+ownership, or cleanup cannot be verified. Scheduling is disabled by default.
+Enable it explicitly from the dashboard when you are ready for hourly full
+reconciliation.
+
+Read the [SearchStax contract](docs/SEARCHSTAX.md) and
+[operations guide](docs/OPERATIONS.md) for endpoint, ownership, recovery, and
+failure details.
+
+## Realtime Article Synchronization
+
+The local/manual-only installation does not expose a public webhook. Leave
+webhook configuration unset when manual **Sync now** and optional scheduled
+reconciliation are sufficient.
+
+For a deployed installation with realtime synchronization:
+
+- Set `WEBHOOK_SIGNING_SECRET` before the first launcher run. The launcher
+  stores it in `.connector-local/webhook-signing-secret` with mode `0600` and
+  passes it to the container through a file-backed secret.
+- Configure Zendesk to send Article published and Article unpublished events to
+  the exact `POST /api/webhooks/zendesk` route over HTTPS.
+- Expose only that webhook route to public inbound traffic. Keep the operator
+  UI, operator routes, health and readiness endpoints, every other API route,
+  and raw port 4173 private. The launcher continues to bind the host port to
+  loopback. The proxy must preserve or set the upstream `Host` expected by the
+  private application boundary (`127.0.0.1:4173` by default).
+
+The launcher keeps the operator UI on its private loopback origin. Broader
+provider-neutral ingress and origin qualification is separate work.
+
+The webhook verifies the signed raw request and a timestamp within five minutes,
+then performs a fresh authenticated Zendesk read before indexing or removing a
+connector-owned record. Full reconciliation remains the repair path for missed
+or failed events. Live qualification covers published, edited, unpublished,
+duplicate, invalid-signature, and missed-event repair scenarios. Local tests
+cover controlled transient failures and transport reordering. No broader
+realtime guarantee is made.
+
+## Persistence, Restart, and Recovery
+
+MySQL 8.4 is the supported persistence path. Normal reruns preserve the
+connector identity, encryption key, MySQL data, saved configuration, ownership
+records, and history. Startup refuses pending or future schema versions rather
+than migrating silently.
+
+Back up the MySQL database and configuration encryption key separately. Keep
+the matching key, schema version, connector identity, and image digest with the
+backup record. Restore into a fresh isolated database before validation. The
+installer does not create backups automatically, and there is no production
+RTO/RPO or high-availability guarantee.
+
+A long-running deployment requires a private supported Linux/arm64 Docker host.
+Provider-specific cloud deployment is not yet a qualified or documented
+support path. Read [operations](docs/OPERATIONS.md) for restart, backup,
+recovery, and schema procedures.
 
 ## Development
 
-The source includes the product tests and browser acceptance tests. Use the
-commands in [development](docs/DEVELOPMENT.md). The public source presents one
-customer persistence story: MySQL.
+The source includes unit, integration, and browser tests. See the
+[development guide](docs/DEVELOPMENT.md) for source checks. The supported
+customer persistence story is MySQL.
 
-## Support, security, and releases
+## Support, Security, and Releases
 
-Use the existing SearchStax customer support process for product questions;
-this repository does not promise GitHub Issues as a support channel. Report
-suspected vulnerabilities privately as described in [SECURITY.md](SECURITY.md),
-never in a public issue.
+Use the [SearchStax support process](SUPPORT.md) for product and configuration
+questions. Report suspected vulnerabilities privately as described in
+[SECURITY.md](SECURITY.md), never in a public issue.
 
-Release records, immutable image digests, checksums, and public-commit
-provenance are described in [RELEASES.md](docs/RELEASES.md). The first public
-release must use a new version and tag; historical private prereleases are not
-public releases.
+Release records, immutable image digests, checksums, and public provenance are
+described in [RELEASES.md](docs/RELEASES.md).
 
 ## License
 

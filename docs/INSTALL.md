@@ -1,10 +1,11 @@
 # Installation
 
-## Supported path
+## Supported Installation Path
 
-The supported source installation requires Git and a Linux/arm64 Docker engine
-with Compose support. Host Node.js, npm, and MySQL are not required. Linux/amd64,
-Windows, Kubernetes, and public operator access are not verified by this path.
+The supported source installation requires Git, Docker with Compose, and a
+Linux/arm64 Docker engine. Apple Silicon Docker Desktop is supported. Host
+Node.js, npm, and MySQL are not required. Linux/amd64, Windows, and other
+deployment platforms are not yet verified.
 
 From the repository root, run:
 
@@ -12,54 +13,80 @@ From the repository root, run:
 ./deploy/local/launch.sh
 ```
 
-The launcher verifies Docker, builds the application image locally, creates
-`.connector-local/` with restrictive permissions, generates independent MySQL
-passwords and a 32-byte configuration encryption key, creates the connector
-identity, applies the explicit MySQL migrations, and starts the app on
-`127.0.0.1:4173`.
+The launcher builds the application image, creates `.connector-local/` with
+restrictive permissions, generates independent MySQL credentials and a
+configuration encryption key, creates the connector identity, applies the
+explicit MySQL migrations, and starts the app on `127.0.0.1:4173`.
 
 The state directory and MySQL volume are durable. Run the same command after a
-restart or source update; it does not replace existing state. If initialization
-fails, preserve the state directory and fix the reported Docker, port, disk,
-or permissions issue before retrying.
+restart or source update. If initialization fails, preserve the state directory
+and fix the reported Docker, port, disk, or permissions issue before retrying.
 
-## Browser and vendor setup
+## Configure Optional Settings
+
+The launcher accepts these optional settings from its process environment on
+the first run:
+
+- `ZENDESK_OAUTH_CLIENT_ID` enables the customer-managed OAuth public-client
+  flow.
+- `WEBHOOK_SIGNING_SECRET` enables realtime Article published and Article
+  unpublished delivery.
+
+The launcher saves the OAuth client ID in `.connector-local/runtime.env` with
+mode `0600`. It saves the webhook signing secret in
+`.connector-local/webhook-signing-secret` with mode `0600` and mounts that file
+into the app as a Docker secret. It never prints these values and does not put
+them in Git. The operator UI remains on the private loopback origin.
+
+Normal reruns preserve the saved files and do not replace established values
+from newly exported environment variables. To change a setting, stop the app,
+edit the corresponding file while it remains private, restore mode `0600`, and
+rerun the launcher. Leave the webhook secret empty or unset for a
+local/manual-only installation.
+
+For OAuth, register the fixed callback
+`http://127.0.0.1:4173/api/oauth/zendesk/callback` and request `brands:read
+hc:read`. The connector does not require or accept a client secret.
+
+## Browser Setup
 
 Open `http://127.0.0.1:4173` on the installation host. For a private remote
 host, forward the loopback port over an operator-controlled SSH tunnel. Keep
-the UI private; do not publish it directly to the internet.
+the UI private and do not publish it directly to the internet.
 
-The setup wizard collects Zendesk and SearchStax configuration. Enter vendor
-credentials only in the private setup UI. Saving SearchStax settings performs a
-live compatibility write/read/delete check. Complete setup only against the
-intended brand and destination app.
+The setup wizard validates Zendesk access, lets you choose one brand and
+locales, and collects the SearchStax update endpoint, search endpoint,
+destination name, connector key, Read & Write token, and optional Preview URL.
+Review these values before selecting **Complete setup**.
 
-## Optional realtime webhook delivery
+Saving setup stores encrypted credentials and starts a background SearchStax
+write, read, and cleanup check. The UI shows **Your connection is saved** while
+it waits. Keep the connector running. **Sync now** becomes available after the
+checks complete. Scheduling is disabled until you enable it.
 
-Set `WEBHOOK_SIGNING_SECRET` to enable Zendesk Article published and Article
-unpublished delivery at `POST /api/webhooks/zendesk`. The event only triggers a
-fresh authenticated article read from Zendesk, which remains the source of
-truth; the connector then uses its existing eligibility, indexing, and
-ownership safeguards. Scheduled full reconciliation repairs missed or failed
-events.
-
-Webhook delivery requires a deployed HTTPS-reachable endpoint. Put the
-connector behind a trusted ingress or reverse proxy that permits public
-inbound traffic only for `POST /api/webhooks/zendesk`. Keep the setup UI,
-operator routes, and all other API routes private. Configure `OPERATOR_ORIGIN`
-as the exact HTTP(S) origin used by that proxy and preserve the Host value for
-the connector's existing host validation; TLS may terminate at the proxy. Do
-not publish raw port 4173.
+## Realtime Webhook Delivery
 
 Leave `WEBHOOK_SIGNING_SECRET` unset for a local/manual-only installation.
-Manual sync and scheduled reconciliation do not require webhook configuration.
-Realtime delivery has been qualified against a live Zendesk account for
-published, edited, unpublished, duplicate, invalid-signature, and missed-event
-repair scenarios. Controlled transient-failure injection and transport
-reordering remain covered by local synthetic tests; no broader realtime
-guarantee is made.
+Manual sync and scheduled full reconciliation do not require webhook
+configuration.
 
-## Reviewed image installation
+For realtime delivery, configure Zendesk to send events over HTTPS to the exact
+`POST /api/webhooks/zendesk` route. Put the connector behind a trusted ingress
+or reverse proxy that exposes only this route to public inbound traffic. Keep
+the setup UI, operator routes, health and readiness endpoints, and every other
+API route private. The proxy must preserve or set the upstream `Host` expected
+by the private application boundary (`127.0.0.1:4173` by default). Do not
+publish raw port 4173. Broader provider-neutral ingress and origin
+qualification is separate work.
+
+The webhook verifies the signed raw request and then performs a fresh
+authenticated Zendesk read. Scheduled full reconciliation repairs missed or
+failed events. Live qualification covers published, edited, unpublished,
+duplicate, invalid-signature, and missed-event repair scenarios. Local tests
+cover controlled transient failures and transport reordering. No broader
+realtime guarantee is made.
+
+## Reviewed Image Installation
 
 When a public immutable image is available, use the reviewed installer with a
 full `@sha256:` digest. Do not use a mutable tag as deployment identity. The

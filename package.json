@@ -19,7 +19,7 @@
     "start:container": "node --experimental-transform-types scripts/container.ts",
     "db:migrate:mysql": "node scripts/migrate-mysql.ts",
     "db:inspect:mysql": "node scripts/inspect-mysql.ts",
-    "test:local-install": "node --test deploy/local/install-tests.mjs"
+    "test:local-install": "node --test deploy/local/install-tests.mjs deploy/local/launch-tests.mjs"
   },
   "dependencies": {
     "mysql2": "3.24.3",

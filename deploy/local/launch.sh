@@ -17,6 +17,8 @@ COMPOSE_FILE=$ROOT_DIR/deploy/local/compose.yaml
 IMAGE=${CONNECTOR_IMAGE:-searchstax-zendesk-connector:local}
 PROJECT_NAME=${CONNECTOR_COMPOSE_PROJECT:-connector-local}
 PORT=${RUNTIME_PROOF_PORT:-4173}
+RUNTIME_ENV_FILE=$STATE_DIR/runtime.env
+WEBHOOK_SECRET_FILE=$STATE_DIR/webhook-signing-secret
 
 fail() {
   printf 'Launch failed: %s\n' "$1" >&2
@@ -41,6 +43,50 @@ write_once() {
   mv "$temp" "$path"
 }
 
+validate_value() {
+  value_name=$1
+  value=$2
+  case "$value" in
+    *[![:print:]]*) fail "$value_name contains unsupported control characters." ;;
+  esac
+}
+
+escape_env_value() {
+  printf '%s' "$1" | sed 's/[\\"]/\\&/g'
+}
+
+write_runtime_config() {
+  if [ -L "$RUNTIME_ENV_FILE" ]; then
+    fail 'The runtime configuration file must not be a symbolic link.'
+  fi
+  if [ -e "$RUNTIME_ENV_FILE" ]; then
+    chmod 600 "$RUNTIME_ENV_FILE"
+    return 0
+  fi
+  oauth_client_id=${ZENDESK_OAUTH_CLIENT_ID:-}
+  validate_value ZENDESK_OAUTH_CLIENT_ID "$oauth_client_id"
+  oauth_client_id=$(escape_env_value "$oauth_client_id")
+  temp="$RUNTIME_ENV_FILE.tmp.$$"
+  (umask 077 && {
+    printf 'ZENDESK_OAUTH_CLIENT_ID="%s"\n' "$oauth_client_id"
+  } >"$temp") || fail 'Could not write local runtime configuration.'
+  chmod 600 "$temp"
+  mv "$temp" "$RUNTIME_ENV_FILE"
+}
+
+write_webhook_secret() {
+  if [ -L "$WEBHOOK_SECRET_FILE" ]; then
+    fail 'The webhook signing secret file must not be a symbolic link.'
+  fi
+  if [ -e "$WEBHOOK_SECRET_FILE" ]; then
+    chmod 600 "$WEBHOOK_SECRET_FILE"
+    return 0
+  fi
+  webhook_secret=${WEBHOOK_SIGNING_SECRET:-}
+  validate_value WEBHOOK_SIGNING_SECRET "$webhook_secret"
+  write_once "$WEBHOOK_SECRET_FILE" 0600 "$webhook_secret"
+}
+
 printf '%s\n' 'Checking Docker and Compose…' >&2
 docker compose version >/dev/null 2>&1 || fail 'Docker Compose is unavailable. Install Docker with Compose.'
 platform=$(docker info --format '{{.OSType}}/{{.Architecture}}' 2>/dev/null) || fail 'Docker is not running. Start Docker and retry.'
@@ -61,6 +107,9 @@ cleanup() {
   rm -rf "$LOCK_DIR"
 }
 trap cleanup EXIT INT TERM
+
+write_runtime_config
+write_webhook_secret
 
 for name in mysql-password mysql-root-password database-url config-encryption-key connector-id; do
   if [ -e "$STATE_DIR/$name" ] && [ ! -s "$STATE_DIR/$name" ]; then
@@ -94,6 +143,8 @@ cat >"$STATE_DIR/compose.env.tmp.$$" <<EOF
 APP_IMAGE="$IMAGE"
 CONNECTOR_ID=$connector_id
 STATE_DIR="$STATE_DIR"
+RUNTIME_ENV_FILE="$RUNTIME_ENV_FILE"
+WEBHOOK_SECRET_FILE="$WEBHOOK_SECRET_FILE"
 RUNTIME_PROOF_PORT=$PORT
 EOF
 chmod 600 "$STATE_DIR/compose.env.tmp.$$"
